@@ -1,4 +1,3 @@
-
 package pcf
 
 import (
@@ -11,4 +10,3 @@ func TestPcf(t *testing.T) {
 		f.DumpAscii("out", '操')
 	}
 }
-

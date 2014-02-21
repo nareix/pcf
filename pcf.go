@@ -1,8 +1,8 @@
 package pcf
 
 import (
-	"io"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -22,10 +22,10 @@ const (
 	PCF_GLYPH_NAMES      = (1 << 7)
 	PCF_BDF_ACCELERATORS = (1 << 8)
 
-	PCF_DEFAULT_FORMAT	= 0x00000000
-	PCF_INKBOUNDS		= 0x00000200
-	PCF_ACCEL_W_INKBOUNDS =	0x00000100
-	PCF_COMPRESSED_METRICS	= 0x00000100
+	PCF_DEFAULT_FORMAT     = 0x00000000
+	PCF_INKBOUNDS          = 0x00000200
+	PCF_ACCEL_W_INKBOUNDS  = 0x00000100
+	PCF_COMPRESSED_METRICS = 0x00000100
 )
 
 type tocEntry struct {
@@ -41,18 +41,18 @@ type fileHeader struct {
 }
 
 type metricEntry struct {
-	leftSidedBearing int
+	leftSidedBearing  int
 	rightSidedBearing int
-	charWidth int
-	charAscent int
-	charDescent int
-	charAttr int
+	charWidth         int
+	charAscent        int
+	charDescent       int
+	charAttr          int
 }
 
 type metricTable struct {
-	table *tocEntry
+	table  *tocEntry
 	format int32
-	count int
+	count  int
 }
 
 func (t *metricTable) read(f io.ReadSeeker) (err error) {
@@ -84,7 +84,7 @@ func (t *metricTable) readMeticEntry(r io.ReadSeeker, i int, entry *metricEntry)
 		return
 	}
 	if (t.table.format & PCF_COMPRESSED_METRICS) != 0 {
-		if _, err = r.Seek(int64(t.table.offset) + 6 + int64(i)*5, 0); err != nil {
+		if _, err = r.Seek(int64(t.table.offset)+6+int64(i)*5, 0); err != nil {
 			return
 		}
 		var b [5]byte
@@ -102,7 +102,7 @@ func (t *metricTable) readMeticEntry(r io.ReadSeeker, i int, entry *metricEntry)
 		entry.charDescent = int(b[4])
 		entry.charDescent -= 0x80
 	} else {
-		if _, err = r.Seek(int64(t.table.offset) + 8 + int64(i)*12, 0); err != nil {
+		if _, err = r.Seek(int64(t.table.offset)+8+int64(i)*12, 0); err != nil {
 			return
 		}
 		var b [6]int16
@@ -120,10 +120,10 @@ func (t *metricTable) readMeticEntry(r io.ReadSeeker, i int, entry *metricEntry)
 }
 
 type bitmapTable struct {
-	table *tocEntry
-	format int32
-	count int32
-	offsets []int32
+	table       *tocEntry
+	format      int32
+	count       int32
+	offsets     []int32
 	bitmapSizes [4]int32
 }
 
@@ -156,7 +156,7 @@ func (t *bitmapTable) readData(r io.ReadSeeker, i int) (b []byte, err error) {
 		err = fmt.Errorf("bitmapReadData: out of range (%d of %d)", i, t.count)
 		return
 	}
-	off := int64(t.table.offset) + int64(8 + 4*len(t.offsets) + 16)
+	off := int64(t.table.offset) + int64(8+4*len(t.offsets)+16)
 	off += int64(t.offsets[i])
 	size := t.offsets[i+1] - t.offsets[i]
 	if size < 0 {
@@ -172,14 +172,14 @@ func (t *bitmapTable) readData(r io.ReadSeeker, i int) (b []byte, err error) {
 }
 
 type encodingTable struct {
-	table *tocEntry
-	format int32
+	table          *tocEntry
+	format         int32
 	minCharOrByte2 int16
 	maxCharOrByte2 int16
-	minByte1 int16
-	maxByte1 int16
-	defChar int16
-	index []int16
+	minByte1       int16
+	maxByte1       int16
+	defChar        int16
+	index          []int16
 }
 
 func (t *encodingTable) read(r io.ReadSeeker) (err error) {
@@ -221,10 +221,10 @@ func (t *encodingTable) lookup(i int) (r int, err error) {
 	b1, b2 := i&0xff, i>>8
 	off := 0
 	if b2 == 0 {
-		off = b1-int(t.minCharOrByte2)
+		off = b1 - int(t.minCharOrByte2)
 	} else {
 		off = (b2-int(t.minByte1))*int(t.maxCharOrByte2-t.minCharOrByte2+1) +
-				(b1-int(t.minCharOrByte2))
+			(b1 - int(t.minCharOrByte2))
 	}
 
 	if Debug {
@@ -261,7 +261,7 @@ func _bread(r io.Reader, v interface{}, swap bool) error {
 
 	if swap {
 		for i := 0; i < nelem; i++ {
-			start := i*size
+			start := i * size
 			for j := 0; j < size/2; j++ {
 				slice[start+j], slice[start+size-1-j] = slice[start+size-1-j], slice[start+j]
 			}
@@ -281,9 +281,9 @@ func bread(r io.Reader, v interface{}) error {
 
 type PCFFile struct {
 	encoding *encodingTable
-	bitmap *bitmapTable
-	metric *metricTable
-	f *os.File
+	bitmap   *bitmapTable
+	metric   *metricTable
+	f        *os.File
 }
 
 var Debug bool
@@ -390,7 +390,7 @@ func (pf *PCFFile) DumpAscii(fname string, r rune) {
 		for j := 0; j < width; j++ {
 			bits := b[i+j]
 			for k := 7; k >= 0; k-- {
-				if bits & (1<<byte(k)) != 0 {
+				if bits&(1<<byte(k)) != 0 {
 					f.Write([]byte{'*'})
 				} else {
 					f.Write([]byte{' '})
@@ -401,5 +401,3 @@ func (pf *PCFFile) DumpAscii(fname string, r rune) {
 	}
 	f.Close()
 }
-
-
