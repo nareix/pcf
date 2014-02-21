@@ -391,9 +391,9 @@ func (pf *PCFFile) DumpAscii(fname string, r rune) {
 			bits := b[i+j]
 			for k := 7; k >= 0; k-- {
 				if bits & (1<<byte(k)) != 0 {
-					f.Write([]byte{'.'})
+					f.Write([]byte{'@'})
 				} else {
-					f.Write([]byte{' '})
+					f.Write([]byte{'.'})
 				}
 			}
 		}
