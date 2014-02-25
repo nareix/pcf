@@ -40,13 +40,13 @@ type fileHeader struct {
 	tableCount int
 }
 
-type metricEntry struct {
-	leftSidedBearing int
-	rightSidedBearing int
-	charWidth int
-	charAscent int
-	charDescent int
-	charAttr int
+type MetricEntry struct {
+	LeftSidedBearing int
+	RightSidedBearing int
+	CharWidth int
+	CharAscent int
+	CharDescent int
+	CharAttr int
 }
 
 type metricTable struct {
@@ -78,9 +78,9 @@ func (t *metricTable) read(f io.ReadSeeker) (err error) {
 	return
 }
 
-func (t *metricTable) readMeticEntry(r io.ReadSeeker, i int, entry *metricEntry) (err error) {
+func (t *metricTable) readMetricEntry(r io.ReadSeeker, i int, entry *MetricEntry) (err error) {
 	if i > t.count {
-		err = fmt.Errorf("readMeticEntry: out of range (%d of %d)", i, t.count)
+		err = fmt.Errorf("readMetricEntry: out of range (%d of %d)", i, t.count)
 		return
 	}
 	if (t.table.format & PCF_COMPRESSED_METRICS) != 0 {
@@ -91,16 +91,16 @@ func (t *metricTable) readMeticEntry(r io.ReadSeeker, i int, entry *metricEntry)
 		if _, err = r.Read(b[:]); err != nil {
 			return
 		}
-		entry.leftSidedBearing = int(b[0])
-		entry.leftSidedBearing -= 0x80
-		entry.rightSidedBearing = int(b[1])
-		entry.rightSidedBearing -= 0x80
-		entry.charWidth = int(b[2])
-		entry.charWidth -= 0x80
-		entry.charAscent = int(b[3])
-		entry.charAscent -= 0x80
-		entry.charDescent = int(b[4])
-		entry.charDescent -= 0x80
+		entry.LeftSidedBearing = int(b[0])
+		entry.LeftSidedBearing -= 0x80
+		entry.RightSidedBearing = int(b[1])
+		entry.RightSidedBearing -= 0x80
+		entry.CharWidth = int(b[2])
+		entry.CharWidth -= 0x80
+		entry.CharAscent = int(b[3])
+		entry.CharAscent -= 0x80
+		entry.CharDescent = int(b[4])
+		entry.CharDescent -= 0x80
 	} else {
 		if _, err = r.Seek(int64(t.table.offset) + 8 + int64(i)*12, 0); err != nil {
 			return
@@ -109,12 +109,12 @@ func (t *metricTable) readMeticEntry(r io.ReadSeeker, i int, entry *metricEntry)
 		if err = bread(r, b); err != nil {
 			return
 		}
-		entry.leftSidedBearing = int(b[0])
-		entry.rightSidedBearing = int(b[1])
-		entry.charWidth = int(b[2])
-		entry.charAscent = int(b[3])
-		entry.charDescent = int(b[4])
-		entry.charAttr = int(b[5])
+		entry.LeftSidedBearing = int(b[0])
+		entry.RightSidedBearing = int(b[1])
+		entry.CharWidth = int(b[2])
+		entry.CharAscent = int(b[3])
+		entry.CharDescent = int(b[4])
+		entry.CharAttr = int(b[5])
 	}
 	return
 }
@@ -279,7 +279,7 @@ func bread(r io.Reader, v interface{}) error {
 	return _bread(r, v, false)
 }
 
-type PCFFile struct {
+type File struct {
 	encoding *encodingTable
 	bitmap *bitmapTable
 	metric *metricTable
@@ -288,7 +288,7 @@ type PCFFile struct {
 
 var Debug bool
 
-func Open(file string) (pf *PCFFile, err error) {
+func Open(file string) (pf *File, err error) {
 	var f *os.File
 	f, err = os.Open(file)
 	if err != nil {
@@ -300,7 +300,7 @@ func Open(file string) (pf *PCFFile, err error) {
 		return
 	}
 
-	pf = &PCFFile{f: f}
+	pf = &File{f: f}
 
 	var tocMetrics, tocBitmaps *tocEntry
 	var tocEncoding *tocEntry
@@ -360,36 +360,44 @@ func Open(file string) (pf *PCFFile, err error) {
 	return
 }
 
-func (pf *PCFFile) Lookup(r rune) (b []byte, width int, err error) {
+func (pf *File) Lookup(r rune) (b []byte, me MetricEntry, stride int, err error) {
 	var i int
 	if i, err = pf.encoding.lookup(int(r)); err != nil {
+		return
+	}
+	if err = pf.metric.readMetricEntry(pf.f, i, &me); err != nil {
 		return
 	}
 	if b, err = pf.bitmap.readData(pf.f, i); err != nil {
 		return
 	}
-	width = 4
+	stride = 4
 	return
 }
 
-func (pf *PCFFile) DumpAscii(fname string, r rune) {
+func (pf *File) DumpAscii(fname string, r rune) {
 	f, err := os.Create(fname)
 	if err != nil {
 		return
 	}
 
 	var b []byte
-	var width int
+	var me MetricEntry
+	var stride int
 
-	b, width, err = pf.Lookup(r)
+	b, me, stride, err = pf.Lookup(r)
 	if Debug {
-		log.Println("len", len(b))
+		log.Println("lookup: len", len(b))
+		log.Println("lookup: MetricEntry", me)
 	}
 
-	for i := 0; i < len(b); i += width {
-		for j := 0; j < width; j++ {
+	for i := 0; i < len(b); i += stride {
+		for j := 0; j < stride; j++ {
 			bits := b[i+j]
 			for k := 7; k >= 0; k-- {
+				if j*8+7-k > me.CharWidth {
+					continue
+				}
 				if bits & (1<<byte(k)) != 0 {
 					f.Write([]byte{'@'})
 				} else {
