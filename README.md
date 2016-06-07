@@ -1,16 +1,18 @@
 
-使用
+Usage
 ----
 
-	import "gitcafe.com/nuomi-studio/pcf.git"
+```go
+import "github.com/nareix/pcf"
 
-	func main() {
-		if f, err := pcf.Open("wenquanyi_13px.pcf"); err == nil {
-			f.DumpAscii("out", '操')
-		}
+func main() {
+	if f, err := pcf.Open("wenquanyi_13px.pcf"); err == nil {
+		f.DumpAscii("out", '操')
 	}
+}
+```
 
-输出
+Output
 	
 	$ cat out
 	..@...@@@@@.....................
